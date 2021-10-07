@@ -51,22 +51,22 @@ rbtree_pointer new_rbtree()
     return t;
 }
 
-tree_pointer find_max(tree_pointer n)
+tree_pointer find_min(rbtree_pointer t, tree_pointer n)
 {
-    tree_pointer max = n;
-    while(n->right != NULL)
-    {
-        max = find_max(n->right);
-    }
+    tree_pointer min = n;
 
-    return max;
+    if(n->left == t->NIL)
+        return min;
+
+    min = find_min(t, n->left);
+    return min;
 } 
-tree_pointer find_successor(tree_pointer n)
+tree_pointer find_successor(rbtree_pointer t, tree_pointer n)
 {
-    if(n->left == NULL)
-        return NULL;
+    if(n->right == t->NIL)
+        return n;
     else
-        return find_max(n->left);
+        return find_min(t, n->right);
     
 }
 
@@ -216,27 +216,112 @@ void insertion(rbtree_pointer t, tree_pointer z)
     insert_fixup(t, z);
 }
 
-void deletion_fixup(rbtree_pointer t, tree_pointer z);
+void deletion_fixup(rbtree_pointer t, tree_pointer x, tree_pointer p, tree_pointer s, tree_pointer l, tree_pointer r)
+{
+    //root 체크
+    if(p == t->root)
+        return;
+
+    //case 1-1
+    if(p->color == RED && s->color == BLACK && l->color == BLACK && r->color == BLACK)
+    {
+        p->color = BLACK;
+        s->color = RED;
+        return;
+    }
+
+    //case *-2
+    if(s->color == BLACK && r->color == RED)
+    {
+        s->color = p->color;
+        p->color = BLACK;
+        r->color = BLACK;
+        left_rotation(t, p);
+        return;
+    }
+
+    //case *-3
+    if(s->color == BLACK && l->color == RED && r->color == BLACK)
+    {
+        l->color = BLACK;
+        s->color = RED;
+        right_rotation(t, s);
+
+        //case *-2
+        l->color = p->color;
+        p->color = BLACK;
+        s->color = BLACK;
+        left_rotation(t, p);
+
+        return;
+    }
+
+    //case 2-4
+    if(p->color == BLACK && s->color == RED)
+    {
+        p->color = RED;
+        s->color = BLACK;
+        left_rotation(t, p);
+        return;
+    }
+
+    //case 2-1
+    if(p->color == BLACK && s->color == BLACK && l->color == BLACK && r->color == BLACK)
+    {
+
+        s->color = RED;
+
+        //p에서 같은 현상 발생
+        deletion_fixup(t, p, p->parent, p->parent->right, p->parent->left, p->parent->right);
+        return;
+    }
+    return;
+}
 void deletion(rbtree_pointer t, tree_pointer z)
 {
     //successor를 찾음
-    tree_pointer successor = find_successor(z);
+    tree_pointer m = find_successor(t, z);
+    
+    //successor의 값으로 바꿈
+    z->data = m->data;
+    
+    //                  p
+    //                 / \
+    //                /   \
+    //               /     \
+    //              m       s
+    //               \     / \
+    //                \   /   \
+    //                 x l      r
 
-    //successor의 자리를 변환
-    successor -> parent -> right = t->NIL;
-    successor -> right = z -> right;
-    successor -> left = z -> left;
-    successor -> parent = z -> parent;
-
-
-
-    if(z->color == RED){
-
+    //삭제 노드가 RED 일때
+    if(m->color == RED){
+        m->parent->left = m-> right;
+        m->right->parent = m->parent;
+        free(m);
+        return;
+    }
+    
+    //삭제 노드가 BLACK이고 유일한 자식이 RED 일때
+    if(m->color == BLACK && m->right->color == RED)
+    {
+        m->parent->left = m-> right;
+        m->right->parent = m->parent;
+        m->right->color = BLACK;
+        free(m);
+        return;
     }
 
-    free(z);
+    tree_pointer x = m->right;
+    tree_pointer p = m->parent;
+    tree_pointer s = p->right;
+    tree_pointer l = s->left;
+    tree_pointer r = r->right;
+    p->left = x;
+    x->parent = p;
 
-
+    //m이 BLACK이고 x도 BLACK 일때
+    deletion_fixup(t, x, p, s, l, r);
 }
 
 void preorder(rbtree_pointer t, tree_pointer n)
@@ -292,16 +377,16 @@ int main()
     a = new_node(10);
     b = new_node(20);
     c = new_node(30);
-    d = new_node(100);
-    e = new_node(90);
-    f = new_node(40);
-    g = new_node(50);
-    h = new_node(60);
-    i = new_node(70);
-    j = new_node(80);
-    k = new_node(150);
-    l = new_node(110);
-    m = new_node(120);
+    d = new_node(40);
+    e = new_node(50);
+    f = new_node(60);
+    g = new_node(70);
+    h = new_node(80);
+    i = new_node(90);
+    j = new_node(100);
+    k = new_node(110);
+    l = new_node(120);
+    m = new_node(130);
 
     insertion(t, a);
     insertion(t, b);
@@ -317,7 +402,20 @@ int main()
     insertion(t, l);
     insertion(t, m);
 
+    printf("### insertion test ###\n");
+    test(t, t->root);
 
+    deletion(t, d);
+    deletion(t, a);
+    deletion(t, c);
+    deletion(t, e);
+    deletion(t, g);
+    deletion(t, i);
+    deletion(t, k);
+    deletion(t, l);
+    deletion(t, m);
+
+    printf("### deletion test ###\n");
     test(t, t->root);
 
     return 0;
